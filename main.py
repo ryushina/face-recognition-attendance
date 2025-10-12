@@ -8,7 +8,10 @@ from datetime import datetime
 import os
 import csv
 from ultralytics import YOLO
-
+import ttkbootstrap as tb
+from ttkbootstrap.constants import *
+from ttkbootstrap import Style
+from ttkbootstrap.widgets import Button
 
 import cv2, time, threading, os
 from datetime import datetime
@@ -23,104 +26,134 @@ class AppModel:
 class AppView:
     def __init__(self, root, controller):
         self.controller = controller
-
+        self.root = root
         # Configure root grid
         for c in range(12):
-            root.columnconfigure(c, weight=1, uniform="cols")
+            root.columnconfigure(c, weight=1, uniform="cols", minsize=100)
         root.rowconfigure(0, weight=0)  # header
         root.rowconfigure(1, weight=1)  # main
         root.rowconfigure(2, weight=0)  # footer
 
         # HEADER
-        self.header = tk.Label(root, text="HEADER", bg="lightblue", anchor="center")
+        self.header = tb.Label(root, text="HEADER", anchor="center")
         self.header.grid(row=0, column=0, columnspan=12, sticky="nsew")
 
         # SIDEBAR
-        self.sidebar = tk.Frame(root, bg="lightgreen")
+        self.sidebar = tb.Frame(root)
         self.sidebar.grid(row=1, column=0, columnspan=3, sticky="nsew", padx=2, pady=2)
 
         # Login Button (Register button removed per request)
-        self.btn_login = ttk.Button(self.sidebar, text="Login", command=self.on_login_click)
+        self.btn_login = tb.Button(self.sidebar, text="Login", command=self.on_login_click)
         self.btn_login.pack(pady=10, padx=10, fill="x")
 
         # MAIN CONTENT (Camera window)
-        self.main_content = tk.Label(root, bg="black")
-        self.main_content.grid(row=1, column=3, columnspan=4, sticky="nsew", padx=2, pady=2)
+        self.main_content = tb.Label(root)
+        self.main_content.grid(row=1, column=3, columnspan=6, sticky="nsew", padx=2, pady=2)
 
         # PROFILE (now holds registration form)
-        self.profile = tk.Frame(root, bg="lightpink")
-        self.profile.grid(row=1, column=7, columnspan=5, sticky="nsew", padx=2, pady=2)
+        self.profile = tb.Frame(root)
+        self.profile.grid(row=1, column=9, columnspan=3, sticky="nsew", padx=2, pady=2)
+        self.profile.columnconfigure(0, weight=1)
+        self._build_profile_buttons(self.profile)
 
-        self._build_registration_form(self.profile)
-
-        # FOOTER
-        self.footer = tk.Label(root, text="FOOTER", bg="lightgray", anchor="center")
-        self.footer.grid(row=2, column=0, columnspan=12, sticky="nsew")
-
-    # ------------------- UI Builders -------------------
-    def _build_registration_form(self, parent):
-        # Title
-        title = tk.Label(parent, text="Register User", bg="lightpink", font=("Segoe UI", 11, "bold"))
-        title.pack(padx=10, pady=(10, 6), anchor="w")
-
-        form = tk.Frame(parent, bg="lightpink")
-        form.pack(fill="x", padx=10)
-
-        # User ID
-        tk.Label(form, text="User ID:", bg="lightpink").grid(row=0, column=0, sticky="w")
-        self.entry_user_id = ttk.Entry(form)
-        self.entry_user_id.grid(row=0, column=1, sticky="ew", padx=(8, 0), pady=4)
-
-        # First Name
-        tk.Label(form, text="First Name:", bg="lightpink").grid(row=1, column=0, sticky="w")
-        self.entry_first_name = ttk.Entry(form)
-        self.entry_first_name.grid(row=1, column=1, sticky="ew", padx=(8, 0), pady=4)
-
-        # Middle Name
-        tk.Label(form, text="First Name:", bg="lightpink").grid(row=2, column=0, sticky="w")
-        self.entry_middle_name = ttk.Entry(form)
-        self.entry_middle_name.grid(row=1, column=1, sticky="ew", padx=(8, 0), pady=4)
-
-        # Last Name
-        tk.Label(form, text="Last Name:", bg="lightpink").grid(row=3, column=0, sticky="w")
-        self.entry_last_name = ttk.Entry(form)
-        self.entry_last_name.grid(row=2, column=1, sticky="ew", padx=(8, 0), pady=4)
-
-
-        # Make second column stretch
-        #form.columnconfigure(1, weight=1)
-
-        # Register Button
-        self.btn_register_profile = ttk.Button(
-            parent,
-            text="Register",
-            command=self.on_register_submit
+    def _build_profile_buttons(self,parent):
+        for widget in self.profile.winfo_children():
+            widget.destroy()
+        parent.grid_columnconfigure(0, weight=1)
+        parent.grid_rowconfigure(0, weight=1)
+        profile_button_container = tb.Frame(parent)
+        profile_button_container.grid(row=0, column=0, sticky="nsew")
+        profile_button_container.columnconfigure(0, weight=1)
+        btn_register_student = Button(
+            profile_button_container,
+            text="Register Student",
+            bootstyle=SUCCESS,
+            command=lambda: self._show_register_student_form(self.profile)
         )
-        self.btn_register_profile.pack(padx=10, pady=10, fill="x")
+        btn_register_student.grid(row=0,column=0,sticky="ew",padx=8,pady=8)
+        btn_register_teacher = Button(
+            profile_button_container,
+            text="Register Teacher",
+#command=lambda: self._show_register_student_form(self.profile)
+        )
+        btn_register_teacher.grid(row=1, column=0, sticky="ew", padx=8, pady=8)
+        profile_button_container.rowconfigure(0, weight=0)
+        profile_button_container.rowconfigure(1, weight=0)
+        profile_button_container.rowconfigure(2, weight=1)
 
-        # Status label
-        self.register_status = tk.Label(parent, text="", bg="lightpink", fg="darkgreen", anchor="w", justify="left")
-        self.register_status.pack(fill="x", padx=10, pady=(0, 10))
+        return profile_button_container
 
-    # ------------------- Button Handlers -------------------
+    def _show_register_student_form(self, parent):
+        # Clear parent
+        for widget in parent.winfo_children():
+            widget.destroy()
+
+        parent.grid_columnconfigure(0, weight=1)
+        parent.grid_rowconfigure(0, weight=1)
+
+        # ---- Container frame ----
+        self.register_student_form = tb.Frame(parent, padding=15)
+        self.register_student_form.grid(row=0, column=0, sticky="nsew")
+        self.register_student_form.columnconfigure(0, weight=1)
+
+        # ---- Heading ----
+        self.lbl_heading = tb.Label(
+            self.register_student_form,
+            text="Student Registration Form",
+            font=("Segoe UI", 14, "bold"),
+            bootstyle="inverse-primary",
+            anchor="center",
+            padding=(6, 8)
+        )
+        self.lbl_heading.grid(row=0, column=0, pady=(0, 12), sticky="ew")
+
+        # ---- Fields ----
+        self.lbl_lrn = tb.Label(self.register_student_form, text="LRN:")
+        self.lbl_lrn.grid(row=1, column=0, pady=(6, 0), sticky="w")
+        self.entry_lrn = tb.Entry(self.register_student_form)
+        self.entry_lrn.grid(row=2, column=0, pady=(0, 6), sticky="ew")
+
+        self.lbl_firstname = tb.Label(self.register_student_form, text="First Name:")
+        self.lbl_firstname.grid(row=3, column=0, pady=(6, 0), sticky="w")
+        self.entry_firstname = tb.Entry(self.register_student_form)
+        self.entry_firstname.grid(row=4, column=0, pady=(0, 6), sticky="ew")
+
+        self.lbl_middlename = tb.Label(self.register_student_form, text="Middle Name:")
+        self.lbl_middlename.grid(row=5, column=0, pady=(6, 0), sticky="w")
+        self.entry_middlename = tb.Entry(self.register_student_form)
+        self.entry_middlename.grid(row=6, column=0, pady=(0, 6), sticky="ew")
+
+        self.lbl_lastname = tb.Label(self.register_student_form, text="Last Name:")
+        self.lbl_lastname.grid(row=7, column=0, pady=(6, 0), sticky="w")
+        self.entry_lastname = tb.Entry(self.register_student_form)
+        self.entry_lastname.grid(row=8, column=0, pady=(0, 6), sticky="ew")
+
+        self.lbl_guardian_fullname = tb.Label(self.register_student_form, text="Guardian Full Name:")
+        self.lbl_guardian_fullname.grid(row=9, column=0, pady=(6, 0), sticky="w")
+        self.entry_guardian_fullname = tb.Entry(self.register_student_form)
+        self.entry_guardian_fullname.grid(row=10, column=0, pady=(0, 6), sticky="ew")
+
+        self.lbl_guardian_phone = tb.Label(self.register_student_form, text="Guardian Phone Number:")
+        self.lbl_guardian_phone.grid(row=11, column=0, pady=(6, 0), sticky="w")
+        self.entry_guardian_phone = tb.Entry(self.register_student_form)
+        self.entry_guardian_phone.grid(row=12, column=0, pady=(0, 6), sticky="ew")
+
+        # ---- Buttons ----
+        self.btn_submit = tb.Button(self.register_student_form, text="Submit", bootstyle="success",
+                                    command=self.on_submit)
+        self.btn_submit.grid(row=13, column=0, pady=(10, 4), sticky="ew")
+
+        self.btn_cancel = tb.Button(self.register_student_form, text="Cancel", bootstyle="secondary",
+                                    command=self.on_cancel)
+        self.btn_cancel.grid(row=14, column=0, pady=(0, 0), sticky="ew")
+        for i in range(15):  # rows 0 to 14 = content rows
+            self.register_student_form.rowconfigure(i, weight=0)
+        self.register_student_form.rowconfigure(15, weight=1)
+
+        return self.register_student_form
+
     def on_register_submit(self):
-        """Collects form fields and delegates to controller to persist."""
-        if not self.controller:
-            return
-        payload = {
-            "user_id": self.entry_user_id.get().strip(),
-            "first_name": self.entry_first_name.get().strip(),
-            "last_name": self.entry_last_name.get().strip(),
-            "photo_dir": self.entry_photo_dir.get().strip(),
-        }
-        ok, msg = self.controller.handle_register(payload)
-        self.register_status.configure(text=msg, fg=("darkgreen" if ok else "darkred"))
-
-        if ok:
-            # Clear fields except photo_dir (keep as template)
-            self.entry_user_id.delete(0, tk.END)
-            self.entry_first_name.delete(0, tk.END)
-            self.entry_last_name.delete(0, tk.END)
+        pass
 
     def on_login_click(self):
         """Handles login button click and logs data to log.txt"""
@@ -137,13 +170,11 @@ class AppView:
         w = self.main_content.winfo_width() or 640
         h = self.main_content.winfo_height() or 480
         img = img.resize((w, h))
-
         imgtk = ImageTk.PhotoImage(image=img)
         self.main_content.imgtk = imgtk  # prevent garbage collection
         self.main_content.configure(image=imgtk)
 
 
-# ------------------- CONTROLLER -------------------
 class AppController:
     def __init__(self, model, view, camera_service):
         self.model = model
@@ -210,7 +241,7 @@ class AppController:
 # ------------------- MAIN APP -------------------
 class App:
     def __init__(self):
-        self.root = tk.Tk()
+        self.root = tb.Window(themename="flatly")
         self.root.title("MVC with Camera Face Detection")
         self.root.geometry("1200x600")
         try:
@@ -220,15 +251,12 @@ class App:
 
         model = AppModel()
         view = AppView(self.root, controller=None)
-
         camera_service = CameraService(view)
         controller = AppController(model, view, camera_service)
         view.controller = controller
 
-        # Start camera after window is ready
         self.root.after(200, controller.start_camera)
 
-        # Ensure proper shutdown
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
         self.controller = controller
