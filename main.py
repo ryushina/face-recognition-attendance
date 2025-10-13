@@ -151,6 +151,11 @@ class AppView:
         self.register_student_form.rowconfigure(15, weight=1)
 
         return self.register_student_form
+    def on_submit(self):
+        pass
+
+    def on_cancel(self):
+        pass
 
     def on_register_submit(self):
         pass
