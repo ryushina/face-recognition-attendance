@@ -12,6 +12,7 @@ import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 from ttkbootstrap import Style
 from ttkbootstrap.widgets import Button
+from ttkbootstrap.dialogs import Messagebox
 import cv2, time, threading, os
 from datetime import datetime
 from camera_service import CameraService
@@ -132,13 +133,20 @@ class AppView:
         self.entry_guardian_phone = tb.Entry(self.register_student_form)
         self.entry_guardian_phone.grid(row=12, column=0, pady=(0, 6), sticky="ew")
 
-        # ---- Buttons ----
-        self.btn_submit = tb.Button(self.register_student_form, text="Submit", bootstyle="success",
-                                    command=self.on_submit)
-        self.btn_submit.grid(row=13, column=0, pady=(10, 4), sticky="ew")
+        self.btn_capture = tb.Button(
+            self.register_student_form,
+            text="Capture Image",
+            bootstyle="success",
+            command=self.on_capture_image
+        )
+        self.btn_capture.grid(row=13, column=0, pady=(10, 4), sticky="ew")
 
-        self.btn_submit = tb.Button(self.register_student_form, text="Submit", bootstyle="success",
-                                    command=self.on_submit)
+        self.btn_submit = tb.Button(
+            self.register_student_form,
+            text="Submit",
+            bootstyle="success",
+            command=self.on_submit
+        )
         self.btn_submit.grid(row=14, column=0, pady=(10, 4), sticky="ew")
 
         self.btn_cancel = tb.Button(self.register_student_form, text="Cancel", bootstyle="secondary",
@@ -149,6 +157,26 @@ class AppView:
         self.register_student_form.rowconfigure(16, weight=1)
 
         return self.register_student_form
+    def _collect_student_form_data(self):
+        return {
+            "user_id": self.entry_lrn.get().strip(),
+            "first_name": self.entry_firstname.get().strip(),
+            "middle_name": self.entry_middlename.get().strip(),
+            "last_name": self.entry_lastname.get().strip(),
+            "guardian_fullname": self.entry_guardian_fullname.get().strip(),
+            "guardian_phone": self.entry_guardian_phone.get().strip(),
+        }
+
+    def on_capture_image(self):
+        if not self.controller:
+            return
+        payload = self._collect_student_form_data()
+        success, message = self.controller.handle_capture_image(payload)
+        if success:
+            Messagebox.show_info("Capture Saved", message)
+        else:
+            Messagebox.show_warning("Capture Failed", message)
+
     def on_submit(self):
         pass
 

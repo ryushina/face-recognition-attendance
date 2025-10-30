@@ -64,6 +64,54 @@ class AppController:
                 writer = csv.writer(f)
                 writer.writerow(["user_id", "first_name", "last_name", "photo_dir"])  # header
 
+    @staticmethod
+    def _slugify_segment(value: str, fallback: str) -> str:
+        """Return a filesystem-friendly, lowercase string."""
+        value = (value or "").strip()
+        if not value:
+            value = fallback
+        value = value.replace(" ", "_")
+        cleaned = "".join(ch for ch in value if ch.isalnum() or ch in ("-", "_"))
+        cleaned = cleaned.strip("_-").lower()
+        return cleaned or fallback
+
+    def handle_capture_image(self, payload: dict):
+        """
+        Capture the current student's face image into assets/<student_folder>.
+        """
+        if not isinstance(payload, dict):
+            return False, "Invalid data supplied."
+
+        lrn = payload.get("user_id", "").strip()
+        first_name = payload.get("first_name", "").strip()
+        last_name = payload.get("last_name", "").strip()
+
+        if not lrn:
+            return False, "LRN is required before capturing an image."
+
+        folder_parts = [
+            self._slugify_segment(lrn, "student"),
+            self._slugify_segment(first_name, "") if first_name else "",
+            self._slugify_segment(last_name, "") if last_name else "",
+        ]
+        folder_parts = [part for part in folder_parts if part]
+        folder_name = "_".join(folder_parts) or "student"
+
+        assets_root = "assets"
+        try:
+            os.makedirs(assets_root, exist_ok=True)
+        except Exception as e:
+            return False, f"Unable to create assets directory: {e}"
+
+        student_dir = os.path.join(assets_root, folder_name)
+
+        filename_prefix = self._slugify_segment(first_name or lrn, "face")
+        success, result = self.camera_service.capture_face(student_dir, filename_prefix=filename_prefix)
+        if success:
+            payload["photo_dir"] = student_dir
+            return True, f"Image saved to {result}"
+        return False, result
+
     def handle_register(self, payload: dict):
         """
         Append a dummy user record to users.txt
