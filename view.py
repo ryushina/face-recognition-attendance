@@ -11,7 +11,6 @@ from ultralytics import YOLO
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 from ttkbootstrap import Style
-from ttkbootstrap.widgets import Button
 from ttkbootstrap.dialogs import Messagebox
 import cv2, time, threading, os
 from datetime import datetime
@@ -59,14 +58,14 @@ class AppView:
         profile_button_container = tb.Frame(parent)
         profile_button_container.grid(row=0, column=0, sticky="nsew")
         profile_button_container.columnconfigure(0, weight=1)
-        btn_register_student = Button(
+        btn_register_student = tb.Button(
             profile_button_container,
             text="Register Student",
             bootstyle=SUCCESS,
             command=lambda: self._show_register_student_form(self.profile)
         )
         btn_register_student.grid(row=0,column=0,sticky="ew",padx=8,pady=8)
-        btn_register_teacher = Button(
+        btn_register_teacher = tb.Button(
             profile_button_container,
             text="Register Teacher",
 #command=lambda: self._show_register_student_form(self.profile)
