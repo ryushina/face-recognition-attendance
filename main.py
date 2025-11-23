@@ -13,9 +13,6 @@ import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 from ttkbootstrap import Style
 from ttkbootstrap.widgets import Button
-
-
-
 import cv2, time, threading, os
 from datetime import datetime
 from camera_service import CameraService
