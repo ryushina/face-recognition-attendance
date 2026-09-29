@@ -207,7 +207,12 @@ class RecognitionService:
                 or x2 > width
                 or y2 > height
             ):
-                raise RecognitionError("YuNet returned face bounds outside the image.")
+                # Treat an edge-clipped or otherwise unusable candidate as no
+                # face for this frame. In particular, do not let one malformed
+                # candidate terminate the camera worker and discard the live
+                # preview. Fail closed for this frame so another face cannot be
+                # recognized while a second candidate is clipped.
+                return ()
             landmarks = tuple(values[4:14])
             faces.append(
                 FaceDetection(

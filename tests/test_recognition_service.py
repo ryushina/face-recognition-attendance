@@ -104,10 +104,27 @@ class RecognitionServiceTests(unittest.TestCase):
         with self.assertRaises(MultipleFacesDetected):
             multiple.extract_single(FakeFrame())
 
-    def test_invalid_bounds_nonfinite_and_wrong_detection_rows_fail(self):
-        cases = (
+    def test_out_of_frame_candidate_is_ignored_for_that_frame(self):
+        outside_rows = (
             face_row(x=-1),
+            face_row(x=600, width=100),
+            face_row(y=470, height=20),
             face_row(width=0),
+        )
+        for row in outside_rows:
+            with self.subTest(row=row[:4]):
+                service, _detector, _recognizer = self.make_service([row])
+                self.assertEqual(service.detect(FakeFrame()), ())
+
+        # If one candidate is unusable, fail closed rather than recognize a
+        # different candidate from the same ambiguous frame.
+        service, _detector, _recognizer = self.make_service(
+            [face_row(), face_row(x=-1)]
+        )
+        self.assertEqual(service.detect(FakeFrame()), ())
+
+    def test_malformed_and_nonfinite_detection_rows_fail(self):
+        cases = (
             face_row()[:-1],
             [*face_row()[:14], float("nan")],
         )

@@ -398,6 +398,55 @@ class CameraLifecycleTests(unittest.TestCase):
         device.allow_exit.set()
         self.wait_for_worker(service, service.thread)
 
+    def test_out_of_frame_yunet_candidate_does_not_stop_camera_worker(self):
+        from recognition_service import RecognitionService
+
+        class Detector:
+            def setInputSize(self, _size):
+                pass
+
+            def detect(self, _frame):
+                return None, [[-1, 80, 100, 120, *range(10), 0.99]]
+
+        class StopAfterFirstFrame:
+            def __init__(self):
+                self.read_count = 0
+                self.next_read_started = threading.Event()
+                self.allow_exit = threading.Event()
+
+            def isOpened(self):
+                return True
+
+            def read(self):
+                self.read_count += 1
+                if self.read_count == 1:
+                    return True, FakeFrame()
+                self.next_read_started.set()
+                self.allow_exit.wait(2)
+                return False, None
+
+            def release(self):
+                pass
+
+        device = StopAfterFirstFrame()
+        harness = CameraHarness(self, [device])
+        recognition = RecognitionService(
+            detector=Detector(), recognizer=object()
+        )
+        service = harness.make_service(recognition_service=recognition)
+
+        self.assertTrue(service.start())
+        worker = service.thread
+        self.assertTrue(device.next_read_started.wait(1))
+        update = service.take_latest_ui_update()
+        self.assertTrue(service.running)
+        self.assertIsNone(service.camera_error)
+        self.assertIsNotNone(service._last_frame_bgr)
+        self.assertEqual(update["identity"].status, "unknown")
+        self.assertEqual(update["frame_id"], 1)
+        device.allow_exit.set()
+        self.wait_for_worker(service, worker)
+
     def test_capture_requires_a_fresh_single_face_of_sufficient_size(self):
         invalid_cases = (
             {
