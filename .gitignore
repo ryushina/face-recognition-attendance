@@ -1,6 +1,24 @@
 # Python virtual environment
+.venv/
 venv/
 
 # Python cache files
 __pycache__/
+*.py[cod]
+
+# Local attendance data and generated captures
+/data/
+/assets/
+/users.txt
+/log.txt
+/attendance.csv
+*.db
+*.sqlite
+*.sqlite3
+
+# Locally provisioned recognition models
+/models/*.onnx
+
+# Application-generated logs
+*.log
 
