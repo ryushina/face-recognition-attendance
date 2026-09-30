@@ -1,0 +1,194 @@
+<style>
+  #attendance-kiosk-preview {
+    --k-paper: light-dark(#ffffff, #15252a);
+    --k-base: light-dark(#f5f8f7, #101b20);
+    --k-ink: light-dark(#16352f, #edf7f2);
+    --k-muted: light-dark(#506960, #b6cbc2);
+    --k-line: light-dark(#d6e3dc, #39514a);
+    --k-accent: light-dark(#087f68, #74ddbd);
+    --k-accent-ink: light-dark(#ffffff, #102820);
+    --k-soft: light-dark(#e4f4ec, #203f33);
+    --k-preview: light-dark(#eaf0ed, #1d3338);
+    --k-warning: light-dark(#80561a, #f0c581);
+    --k-warning-bg: light-dark(#fff4e1, #43351f);
+    color: var(--k-ink); font: 16px/1.45 "Segoe UI", sans-serif;
+    background: transparent; width: 100%;
+  }
+  #attendance-kiosk-preview * { box-sizing: border-box; }
+  #attendance-kiosk-preview [hidden] { display: none !important; }
+  #attendance-kiosk-preview button { font: inherit; }
+  #attendance-kiosk-preview .k-meta { color: var(--k-muted); font-size: 13px; margin-bottom: 10px; }
+  #attendance-kiosk-preview .k-scenarios { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  #attendance-kiosk-preview .k-scenarios button {
+    padding: 8px 12px; min-height: 40px; border: 1px solid var(--k-line);
+    color: var(--k-ink); background: var(--k-paper); border-radius: 8px;
+  }
+  #attendance-kiosk-preview .k-scenarios button[aria-pressed="true"] {
+    background: var(--k-accent); color: var(--k-accent-ink); border-color: var(--k-accent);
+  }
+  #attendance-kiosk-preview .k-window { background: var(--k-base); border: 1px solid var(--k-line); border-radius: 16px; overflow: hidden; }
+  #attendance-kiosk-preview .k-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; padding: 20px 24px; background: var(--k-paper); border-bottom: 1px solid var(--k-line); }
+  #attendance-kiosk-preview .k-brand { font-size: 20px; font-weight: 600; }
+  #attendance-kiosk-preview .k-date { color: var(--k-muted); font-size: 13px; margin-top: 2px; }
+  #attendance-kiosk-preview .k-pill { background: var(--k-soft); color: var(--k-accent); border-radius: 20px; padding: 6px 12px; font-size: 14px; font-weight: 600; }
+  #attendance-kiosk-preview .k-body { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: center; gap: 30px; padding: 24px; }
+  #attendance-kiosk-preview .k-camera { position: relative; display: grid; place-items: center; min-width: 0; min-height: 258px; aspect-ratio: 4 / 3; border-radius: 12px; background: var(--k-preview); padding: 32px 20px; }
+  #attendance-kiosk-preview .k-preview-label { position: absolute; left: 16px; top: 14px; color: var(--k-muted); font-size: 12px; }
+  #attendance-kiosk-preview .k-oval { width: 48%; height: 88%; min-height: 164px; max-width: 190px; border: 3px solid var(--k-accent); border-radius: 48%; display: grid; place-items: center; }
+  #attendance-kiosk-preview .k-oval svg { width: 40px; height: 40px; color: var(--k-accent); stroke-width: 1.3; }
+  #attendance-kiosk-preview .k-camera-error { text-align: center; color: var(--k-muted); }
+  #attendance-kiosk-preview .k-camera-error svg { display: block; width: 30px; height: 30px; margin: 0 auto 12px; }
+  #attendance-kiosk-preview .k-prompt { min-width: 0; }
+  #attendance-kiosk-preview .k-eyebrow { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--k-accent); margin: 0 0 10px; }
+  #attendance-kiosk-preview .k-prompt h2 { font-size: clamp(27px, 3vw, 38px); line-height: 1.12; font-weight: 600; margin: 0 0 16px; letter-spacing: -0.025em; overflow-wrap: anywhere; color: var(--k-ink); }
+  #attendance-kiosk-preview .k-instruction { color: var(--k-muted); font-size: 18px; margin: 0 0 18px; }
+  #attendance-kiosk-preview .k-result { padding: 10px 14px; border-radius: 8px; background: var(--k-soft); color: var(--k-accent); margin: 0 0 18px; font-weight: 600; }
+  #attendance-kiosk-preview .k-text-button { border: 0; background: transparent; color: var(--k-ink); text-decoration: underline; text-underline-offset: 4px; padding: 8px 0; min-height: 44px; }
+  #attendance-kiosk-preview .k-guide { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; list-style: none; padding: 18px 24px; margin: 0; border-top: 1px solid var(--k-line); background: var(--k-paper); }
+  #attendance-kiosk-preview .k-guide li { display: flex; gap: 10px; align-items: center; color: var(--k-muted); font-size: 14px; }
+  #attendance-kiosk-preview .k-number { flex: 0 0 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: var(--k-base); border: 1px solid var(--k-line); }
+  #attendance-kiosk-preview .k-guide li[aria-current="step"] { color: var(--k-ink); font-weight: 600; }
+  #attendance-kiosk-preview .k-guide li[aria-current="step"] .k-number { background: var(--k-accent); color: var(--k-accent-ink); border-color: var(--k-accent); }
+  #attendance-kiosk-preview .k-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding: 6px 24px; color: var(--k-muted); font-size: 13px; }
+  #attendance-kiosk-preview .k-support { background: var(--k-paper); border-top: 1px solid var(--k-line); padding: 20px 24px; }
+  #attendance-kiosk-preview .k-support h3 { font-size: 20px; margin: 0 0 8px; font-weight: 600; }
+  #attendance-kiosk-preview .k-support p { margin: 0 0 8px; max-width: 60ch; color: var(--k-muted); }
+  #attendance-kiosk-preview[data-tone="attention"] .k-pill,
+  #attendance-kiosk-preview[data-tone="attention"] .k-result { color: var(--k-warning); background: var(--k-warning-bg); }
+  #attendance-kiosk-preview[data-tone="attention"] .k-eyebrow { color: var(--k-warning); }
+  #attendance-kiosk-preview[data-layout="centered"] .k-body { grid-template-columns: minmax(0, 1fr); text-align: center; gap: 24px; }
+  #attendance-kiosk-preview[data-layout="centered"] .k-camera { width: min(100%, 380px); margin: auto; }
+  #attendance-kiosk-preview[data-layout="centered"] .k-prompt { max-width: 540px; margin: auto; }
+  @media (max-width: 620px) {
+    #attendance-kiosk-preview .k-body { grid-template-columns: minmax(0, 1fr); gap: 22px; padding: 18px; }
+    #attendance-kiosk-preview .k-camera { width: min(100%, 370px); margin: auto; min-height: 210px; }
+    #attendance-kiosk-preview .k-header { padding: 16px 18px; }
+    #attendance-kiosk-preview .k-guide { gap: 10px; padding: 16px 18px; }
+    #attendance-kiosk-preview .k-guide li { flex-direction: column; align-items: flex-start; font-size: 13px; }
+    #attendance-kiosk-preview .k-footer { padding: 8px 18px; }
+  }
+</style>
+<div id="attendance-kiosk-preview" data-tone="normal" data-layout="side-by-side" aria-label="Student attendance kiosk design">
+  <div class="k-meta">Design preview · Choose a screen state · Fictional sample data</div>
+  <div class="k-scenarios" role="group" aria-label="Preview screen state">
+    <button type="button" data-scenario="ready" aria-pressed="true">Ready</button>
+    <button type="button" data-scenario="checking" aria-pressed="false">Checking</button>
+    <button type="button" data-scenario="recorded" aria-pressed="false">Recorded</button>
+    <button type="button" data-scenario="duplicate" aria-pressed="false">Already checked in</button>
+    <button type="button" data-scenario="unknown" aria-pressed="false">Not recognized</button>
+    <button type="button" data-scenario="camera" aria-pressed="false">Camera issue</button>
+  </div>
+  <div class="k-window">
+    <header class="k-header">
+      <div><div class="k-brand">Student check-in</div><div class="k-date">Tuesday, 29 September · 7:42 AM</div></div>
+      <span class="k-pill" id="k-status">Ready for check-in</span>
+    </header>
+    <div class="k-body">
+      <div class="k-camera" role="img" aria-label="Illustrative camera preview with face-positioning guide">
+        <span class="k-preview-label">Camera preview</span>
+        <div class="k-oval" id="k-guide-oval"><i data-lucide="scan-face" aria-hidden="true"></i></div>
+        <div class="k-camera-error" id="k-camera-error" hidden><i data-lucide="video-off" aria-hidden="true"></i>Camera unavailable</div>
+      </div>
+      <section class="k-prompt" aria-live="polite" aria-atomic="true">
+        <p class="k-eyebrow" id="k-eyebrow">Step 1 of 3</p>
+        <h2 id="k-title">Look at the camera</h2>
+        <p class="k-instruction" id="k-instruction">Stand inside the outline. We'll guide you from here.</p>
+        <p class="k-result" id="k-result" hidden></p>
+        <button class="k-text-button" id="k-help-button" type="button" aria-expanded="false" aria-controls="k-help">Need help?</button>
+      </section>
+    </div>
+    <ol class="k-guide" id="k-steps" aria-label="Check-in steps">
+      <li data-step="1" aria-current="step"><span class="k-number">1</span><span>Look at the camera</span></li>
+      <li data-step="2"><span class="k-number">2</span><span>Hold still</span></li>
+      <li data-step="3"><span class="k-number">3</span><span>Wait for confirmation</span></li>
+    </ol>
+    <section class="k-support" id="k-help" hidden>
+      <h3>Ask a staff member</h3>
+      <p>Stand where your whole face is visible, with one person in view. If check-in still doesn't work, ask a nearby staff member to help.</p>
+      <p>Your attendance is recorded only when the screen confirms it.</p>
+    </section>
+    <section class="k-support" id="k-staff" hidden>
+      <h3>Staff sign-in required</h3>
+      <p>Student enrollment, attendance records, and camera settings belong in the protected staff area.</p>
+      <button class="k-text-button" id="k-staff-close" type="button">Back to check-in</button>
+    </section>
+    <footer class="k-footer"><span>One person at a time, please.</span><button class="k-text-button" id="k-staff-button" type="button" aria-expanded="false" aria-controls="k-staff">Staff access</button></footer>
+  </div>
+</div>
+<script>
+(() => {
+  const root = document.getElementById('attendance-kiosk-preview');
+  const scenarios = {
+    ready: {status:'Ready for check-in', step:1, eyebrow:'Step 1 of 3', title:'Look at the camera', instruction:"Stand inside the outline. We'll guide you from here.", result:'', tone:'normal'},
+    checking: {status:'Checking', step:2, eyebrow:'Step 2 of 3', title:'Hold still for a moment', instruction:"We're checking your identity. Wait for the confirmation before you leave.", result:'', tone:'normal'},
+    recorded: {status:'Attendance saved', step:3, eyebrow:'Check-in complete', title:"You're checked in, Maya", instruction:'You can step aside for the next student.', result:'✓ Attendance recorded at 7:42 AM', tone:'normal'},
+    duplicate: {status:'Already checked in', step:3, eyebrow:'No further action needed', title:"You're already checked in today", instruction:'Your attendance is already saved. You can step aside.', result:'✓ Checked in at 7:38 AM', tone:'normal'},
+    unknown: {status:'Try again', step:1, eyebrow:'We need another look', title:"We couldn't recognize you", instruction:'Face the camera and try again, or ask a staff member to help.', result:'Attendance has not been recorded.', tone:'attention'},
+    camera: {status:'Check-in unavailable', step:0, eyebrow:'Please see a staff member', title:'Check-in is temporarily unavailable', instruction:"The camera needs attention. A staff member can help with your attendance.", result:'Attendance has not been recorded.', tone:'attention'}
+  };
+  const options = {scenario:'ready', layout:'side-by-side', showGuide:true};
+  const find = id => root.querySelector('#' + id);
+  const help = find('k-help');
+  const staff = find('k-staff');
+  function render() {
+    const screen = scenarios[options.scenario] || scenarios.ready;
+    root.dataset.tone = screen.tone;
+    root.dataset.layout = options.layout;
+    for (const field of ['status','eyebrow','title','instruction','result']) find('k-' + field).textContent = screen[field];
+    find('k-result').hidden = !screen.result;
+    find('k-guide-oval').hidden = options.scenario === 'camera';
+    find('k-camera-error').hidden = options.scenario !== 'camera';
+    find('k-steps').hidden = !options.showGuide;
+    root.querySelectorAll('[data-step]').forEach(el => {
+      if (Number(el.dataset.step) === screen.step) el.setAttribute('aria-current','step');
+      else el.removeAttribute('aria-current');
+    });
+    root.querySelectorAll('[data-scenario]').forEach(el => el.setAttribute('aria-pressed', String(el.dataset.scenario === options.scenario)));
+  }
+  function save() {
+    if (window.openai && typeof window.openai.setWidgetState === 'function') {
+      window.openai.setWidgetState({modelContent:{kioskLayout:options.layout, showGuidance:options.showGuide}, privateContent:{...options}}).catch(() => {});
+    }
+  }
+  function restore(snapshot) {
+    const saved = snapshot && snapshot.privateContent;
+    if (saved) {
+      if (Object.prototype.hasOwnProperty.call(scenarios,saved.scenario)) options.scenario = saved.scenario;
+      if (['side-by-side','centered'].includes(saved.layout)) options.layout = saved.layout;
+      if (typeof saved.showGuide === 'boolean') options.showGuide = saved.showGuide;
+    }
+    render();
+  }
+  root.querySelectorAll('[data-scenario]').forEach(button => button.addEventListener('click', () => {
+    options.scenario = button.dataset.scenario;
+    help.hidden = true;
+    staff.hidden = true;
+    find('k-help-button').setAttribute('aria-expanded','false');
+    find('k-staff-button').setAttribute('aria-expanded','false');
+    render(); save();
+  }));
+  find('k-help-button').addEventListener('click', () => {
+    help.hidden = !help.hidden;
+    find('k-help-button').setAttribute('aria-expanded',String(!help.hidden));
+  });
+  find('k-staff-button').addEventListener('click', () => {
+    staff.hidden = !staff.hidden;
+    find('k-staff-button').setAttribute('aria-expanded',String(!staff.hidden));
+  });
+  find('k-staff-close').addEventListener('click', () => {
+    staff.hidden = true;
+    find('k-staff-button').setAttribute('aria-expanded','false');
+    find('k-staff-button').focus();
+  });
+  restore(window.openai && window.openai.widgetState);
+  window.addEventListener('openai:set_globals', event => {
+    const globals = event.detail && event.detail.globals;
+    if (globals && globals.widgetState) restore(globals.widgetState);
+  });
+  if (globalThis.Tweak) {
+    const tweak = new Tweak({container:root, onChange:() => {render();save();}});
+    tweak.addSelect(options,'layout',{label:'Kiosk layout',options:[{label:'Camera beside instructions',value:'side-by-side'},{label:'Centered camera and instructions',value:'centered'}]});
+    tweak.addToggle(options,'showGuide',{label:'Show the three-step guide'});
+  }
+})();
+</script>
