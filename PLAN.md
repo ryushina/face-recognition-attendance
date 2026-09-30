@@ -2,7 +2,7 @@
 
 Plan and execution record. T01-T12, T14-T16, T18-T20, and T22-T23 are complete. T13, T17, T21, and T24 remain in progress pending the checks recorded below. T25-T30 remain TODO.
 
-UI direction update: the user selected student self-service at a kiosk. The core guided screen, protected staff area, persistent setup, and three-step enrollment are implemented locally; see [docs/kiosk-ui-plan.md](docs/kiosk-ui-plan.md) and [the operator guide](docs/kiosk-user-guide.md). Programmatic Tk layout and workflow checks pass; existing visual/hardware validation remains open. The reproduced SFace array-to-list handoff bug is fixed locally and has a real OpenCV/SFace API regression using synthetic pixels.
+UI direction update: the user selected student self-service at a kiosk. The core guided screen, protected staff area, persistent setup, three-step enrollment, and staff maintenance controls are implemented locally; see [docs/kiosk-ui-plan.md](docs/kiosk-ui-plan.md) and [the operator guide](docs/kiosk-user-guide.md). Programmatic Tk layout and workflow checks pass for the kiosk and enrollment flow; new maintenance actions still need verification. Existing visual/hardware validation remains open. The reproduced SFace array-to-list handoff bug is fixed locally and has a real OpenCV/SFace API regression using synthetic pixels.
 
 ## Working assumptions
 

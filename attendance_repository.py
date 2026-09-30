@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
+import sqlite3
 from zoneinfo import ZoneInfo
 
 from database import Database, DatabaseError
@@ -32,6 +33,24 @@ class AttendanceRepository:
 
     def __init__(self, database: Database):
         self.database = database
+
+    def clear_records(self) -> int:
+        """Remove all attendance events atomically while keeping student records."""
+        connection = None
+        try:
+            connection = self.database.connect()
+            connection.execute("BEGIN IMMEDIATE")
+            count = connection.execute("SELECT COUNT(*) FROM attendance").fetchone()[0]
+            connection.execute("DELETE FROM attendance")
+            connection.commit()
+            return count
+        except (DatabaseError, OSError, ValueError, sqlite3.Error) as exc:
+            if connection is not None:
+                connection.rollback()
+            raise AttendanceHistoryError(f"Could not clear attendance history: {exc}") from exc
+        finally:
+            if connection is not None:
+                connection.close()
 
     def list_records(
         self, *, attendance_date: str | None = None, student_id: str | None = None,

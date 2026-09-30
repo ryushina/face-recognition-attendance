@@ -235,6 +235,73 @@ class StudentRepository:
         finally:
             connection.close()
 
+    def maintenance_counts(self) -> dict[str, int]:
+        """Return row counts for the staff maintenance screen."""
+        connection = self._connect()
+        try:
+            students = connection.execute("SELECT COUNT(*) FROM students").fetchone()[0]
+            attendance = connection.execute("SELECT COUNT(*) FROM attendance").fetchone()[0]
+            return {"students": students, "attendance": attendance}
+        except (sqlite3.Error, DatabaseError) as exc:
+            raise StudentRepositoryError(f"Could not count saved records: {exc}") from exc
+        finally:
+            connection.close()
+
+    def delete_student(self, student_id: str) -> dict:
+        """Delete one student, that student's attendance, and sample references atomically."""
+        normalized_id = self._validate_student_id(student_id)
+        connection = self._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT enrollment_status FROM students WHERE student_id = ?", (normalized_id,)
+            ).fetchone()
+            if row is None:
+                raise StudentValidationError("Student was not found. Refresh the list.")
+            if row["enrollment_status"] == "indexing":
+                raise StudentValidationError("Recognition preparation is running. Wait before deleting this student.")
+            paths = [item[0] for item in connection.execute(
+                "SELECT image_path FROM face_samples WHERE student_id = ?", (normalized_id,)
+            ).fetchall()]
+            attendance_count = connection.execute(
+                "SELECT COUNT(*) FROM attendance WHERE student_id = ?", (normalized_id,)
+            ).fetchone()[0]
+            connection.execute("DELETE FROM attendance WHERE student_id = ?", (normalized_id,))
+            connection.execute("DELETE FROM students WHERE student_id = ?", (normalized_id,))
+            connection.commit()
+            return {"student_id": normalized_id, "attendance_count": attendance_count, "sample_paths": paths}
+        except (sqlite3.Error, DatabaseError) as exc:
+            connection.rollback()
+            raise StudentRepositoryError(f"Could not delete student {normalized_id!r}: {exc}") from exc
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+    def reset_all_records(self) -> dict:
+        """Delete every student, attendance row, and face-sample reference atomically."""
+        connection = self._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            students = connection.execute("SELECT COUNT(*) FROM students").fetchone()[0]
+            attendance = connection.execute("SELECT COUNT(*) FROM attendance").fetchone()[0]
+            paths = [item[0] for item in connection.execute(
+                "SELECT image_path FROM face_samples ORDER BY sample_id"
+            ).fetchall()]
+            connection.execute("DELETE FROM attendance")
+            connection.execute("DELETE FROM students")
+            connection.commit()
+            return {"students": students, "attendance": attendance, "sample_paths": paths}
+        except (sqlite3.Error, DatabaseError) as exc:
+            connection.rollback()
+            raise StudentRepositoryError(f"Could not reset saved records: {exc}") from exc
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
     def get_samples(self, student_id: str) -> list[FaceSampleRecord]:
         """Return samples associated with the requested student ID."""
         normalized_id = self._validate_student_id(student_id)

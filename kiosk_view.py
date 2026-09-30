@@ -79,7 +79,7 @@ class KioskView(StudentRecordsView):
         self.staff_panel.rowconfigure(1, weight=1)
         nav = tb.Frame(self.staff_panel)
         nav.grid(row=0, column=0, sticky="ew", pady=(0, 8))
-        for i, (label, command) in enumerate((("Setup", self.setup), ("Students", self.student_records), ("Enroll student", self.begin_enrollment), ("History", self.open_attendance_history), ("Diagnostics", self.diagnostics))):
+        for i, (label, command) in enumerate((("Setup", self.setup), ("Students", self.student_records), ("Enroll student", self.begin_enrollment), ("History", self.open_attendance_history), ("Diagnostics", self.diagnostics), ("Maintenance", self.staff_maintenance))):
             nav.columnconfigure(i % 2, weight=1)
             tb.Button(nav, text=label, command=command, bootstyle="secondary-outline").grid(row=i // 2, column=i % 2, sticky="ew", padx=2, pady=2)
         scroller = tb.Frame(self.staff_panel)

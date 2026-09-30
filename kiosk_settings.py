@@ -127,3 +127,21 @@ class StaffAccess:
         value.update(failures=0, blocked_until=0)
         write_json(self.path, value)
         self._until = self._clock() + 300
+
+    def change_password(self, current_password, new_password):
+        """Rotate the staff credential after verifying the current password."""
+        self.require()
+        if not isinstance(new_password, str) or not 10 <= len(new_password) <= 1024:
+            raise StaffAccessError("Use a new staff password with 10 to 1024 characters.")
+        self.sign_in(current_password)
+        if new_password == current_password:
+            raise StaffAccessError("Choose a different password from the current one.")
+        salt = secrets.token_bytes(16)
+        value = {
+            "salt": salt.hex(),
+            "digest": self._digest(new_password, salt),
+            "failures": 0,
+            "blocked_until": 0,
+        }
+        write_json(self.path, value)
+        self._until = self._clock() + 300

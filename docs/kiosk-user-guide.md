@@ -30,6 +30,8 @@ Choose **Lock and open student kiosk** when the preview works and at least one s
 
 **History** shows records for a selected school-local date and optional student ID. Clear filters to view all matching records. **Export CSV** exports the displayed filter's records to your chosen file.
 
+Open **Maintenance** to change the staff password, clear attendance history, or reset student records. Changing the password requires the current password and a new password of at least 10 characters. Clearing history keeps student profiles and face photos. **Students -> open a record -> Delete student and attendance** removes only that student, their attendance events, and linked app-managed enrollment photos. **Reset all student records** removes all student profiles, their attendance events, and linked app-managed enrollment photos. Destructive actions show what will be removed and require both the current staff password and the exact confirmation phrase. A reset keeps the staff password, camera/timezone setup, backups, and exported files. These app controls do not delete backup copies. Forgotten staff passwords require local administrator recovery.
+
 ## Checking a recognition failure
 
 Open **Staff access -> Diagnostics -> Live recognition check**. The same live recognition pipeline continues while attendance is paused. This view shows individual frame results, the number of saved students, and the number loaded in the recognition gallery. It never saves attendance or new photos. A match here is a diagnostic observation, not a completed check-in or a measured accuracy result.
@@ -53,6 +55,6 @@ Scores are similarities, not probabilities. Do not lower thresholds merely to ac
 | Recognition preparation failed | The student's record is saved. Retry preparation and read staff Diagnostics for the cause. |
 | Attendance could not be saved | Staff: check the data drive/storage error in Diagnostics. Use the school's alternate attendance process until the problem is resolved. |
 | A setting is overridden | A launch environment variable conflicts with the saved preference. Ask the person who starts the app to remove that override and restart. |
-| Staff password not accepted | Retry carefully. After five incorrect attempts, wait 30 seconds. Forgotten credentials need the local administrator; no reset is offered from the student screen. |
+| Staff password not accepted | Retry carefully. After five incorrect attempts, wait 30 seconds. Staff can change a known password in Maintenance; forgotten credentials need local administrator recovery. |
 
 Technical details stay in staff Diagnostics and `application.log`. Share only the relevant error text for troubleshooting; do not send student records or face photos unnecessarily.

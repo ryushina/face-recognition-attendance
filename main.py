@@ -22,6 +22,7 @@ from kiosk_settings import StaffAccess, read_json, save_preferences
 from kiosk_flow import KioskFlow
 from dataclasses import replace
 import os
+from pathlib import Path
 
 
 def configure_application_logging(data_dir):
@@ -314,9 +315,10 @@ class AppController:
         except Exception:
             current = None
             self.logger.exception("Could not verify the latest enrollment state")
-        if current is not None and current.enrollment_status == "indexing":
+        if current is None or current.enrollment_status == "indexing":
             # A finished worker result can remain queued while a newer job for
-            # this student has already started. Never announce the older result.
+            # this student has already started or the record was deleted. Never
+            # announce a stale completion after staff maintenance.
             return result
         if hasattr(self.view, "update_enrollment_status"):
             self.view.update_enrollment_status(result)
@@ -412,6 +414,93 @@ class AppController:
         worker = getattr(self.enrollment_indexer, "_thread", None)
         if self._pending_index_ids or (worker is not None and worker.is_alive()):
             raise ValueError("Recognition preparation is running. Wait before changing records.")
+        review_worker = getattr(self.photo_reviewer, "_thread", None)
+        if review_worker is not None and review_worker.is_alive():
+            raise ValueError("Photo quality review is running. Wait before changing records.")
+
+    def get_maintenance_counts(self):
+        self.require_staff()
+        if self.student_repository is None:
+            raise ValueError("Student storage is unavailable.")
+        return self.student_repository.maintenance_counts()
+
+    def _reauthenticate_staff(self, password):
+        if self.staff_access is None:
+            raise ValueError("Staff password verification is unavailable.")
+        self.staff_access.sign_in(password)
+
+    def change_staff_password(self, current_password, new_password):
+        self.require_staff()
+        if self.staff_access is None:
+            raise ValueError("Staff password management is unavailable.")
+        self.staff_access.change_password(current_password, new_password)
+
+    def clear_attendance_records(self, password):
+        self.require_staff()
+        if self.attendance_repository is None:
+            raise ValueError("Attendance storage is unavailable.")
+        self._reauthenticate_staff(password)
+        self.pause_attendance("Attendance is paused while staff clear the history.")
+        return self.attendance_repository.clear_records()
+
+    def _remove_managed_sample_files(self, sample_paths):
+        managed_root = (Path(self.config.data_dir) / "assets" / "enrollment_sessions").resolve()
+        removed = 0
+        pending = 0
+        for stored_path in sample_paths:
+            path = Path(stored_path).expanduser()
+            if not path.is_absolute():
+                path = Path(self.config.data_dir) / path
+            try:
+                resolved = path.resolve()
+                resolved.relative_to(managed_root)
+            except ValueError:
+                # Photos outside the app's managed capture directory are left alone.
+                continue
+            except (OSError, RuntimeError):
+                pending += 1
+                continue
+            if not resolved.is_file():
+                continue
+            try:
+                resolved.unlink()
+                removed += 1
+            except OSError:
+                pending += 1
+                self.logger.warning("Could not remove an app-managed enrollment photo after record deletion")
+                continue
+            parent = resolved.parent
+            while parent != managed_root:
+                try:
+                    parent.rmdir()
+                except OSError:
+                    break
+                parent = parent.parent
+        return {"removed_photos": removed, "photo_cleanup_pending": pending}
+
+    def delete_student_record(self, student_id, password):
+        self.require_staff()
+        self._require_idle_indexing()
+        if self.student_repository is None:
+            raise ValueError("Student storage is unavailable.")
+        self._reauthenticate_staff(password)
+        self.pause_attendance("Attendance is paused while staff delete a student record.")
+        result = self.student_repository.delete_student(student_id)
+        result.update(self._remove_managed_sample_files(result["sample_paths"]))
+        self._refresh_edited_gallery()
+        return result
+
+    def reset_all_student_records(self, password):
+        self.require_staff()
+        self._require_idle_indexing()
+        if self.student_repository is None:
+            raise ValueError("Student storage is unavailable.")
+        self._reauthenticate_staff(password)
+        self.pause_attendance("Attendance is paused while staff reset all student records.")
+        result = self.student_repository.reset_all_records()
+        result.update(self._remove_managed_sample_files(result["sample_paths"]))
+        self._refresh_edited_gallery()
+        return result
 
     @staticmethod
     def student_form_details(student):

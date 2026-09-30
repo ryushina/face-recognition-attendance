@@ -7,8 +7,10 @@ from tkinter import messagebox
 from PIL import Image, ImageTk
 import ttkbootstrap as tb
 
+from staff_maintenance_view import StaffMaintenanceView
 
-class StudentRecordsView:
+
+class StudentRecordsView(StaffMaintenanceView):
     def _student_details_dirty(self):
         entries = getattr(self, "_student_entries", {})
         original = getattr(self, "_student_original", {})
@@ -125,8 +127,37 @@ class StudentRecordsView:
             self._photo_review_labels[sample.sample_id] = self._text("Not checked in this session.")
         tb.Button(self.staff_content, text="Retake face photos", command=lambda: self.retake_student_photos(student.student_id)).pack(fill="x", pady=8)
         tb.Button(self.staff_content, text="Test live recognition", command=self.diagnostics).pack(fill="x", pady=4)
+        tb.Button(
+            self.staff_content, text="Delete student and attendance",
+            command=lambda: self.delete_student_record_from_view(student), bootstyle="danger-outline",
+        ).pack(fill="x", pady=8)
         tb.Button(self.staff_content, text="Back to student list", command=self.student_records, bootstyle="secondary-outline").pack(fill="x", pady=4)
         self.staff_note.configure(text="Save detail edits before leaving. Use Check photo quality to assess saved images.")
+
+    def delete_student_record_from_view(self, student):
+        if not self._confirm_student_navigation():
+            return
+
+        def deleted(result):
+            self._clear_content()
+            self.student_records()
+            note = (f"Deleted student {result['student_id']}, "
+                    f"{result['attendance_count']} attendance events, and "
+                    f"{result['removed_photos']} managed photos.")
+            if result["photo_cleanup_pending"]:
+                note += f" {result['photo_cleanup_pending']} photo files need local cleanup."
+            self.staff_note.configure(text=note)
+
+        self._show_sensitive_confirmation(
+            title="Delete student record",
+            warning=(f"This permanently deletes {student.first_name} {student.last_name} "
+                     f"(LRN {student.student_id}), all attendance history for this student, "
+                     "and app-managed enrollment photos."),
+            required_text=f"DELETE {student.student_id}",
+            operation=lambda password: self.controller.delete_student_record(student.student_id, password),
+            success=deleted,
+            button_text="Delete student permanently",
+        )
 
     def save_student_details(self):
         self.access.require()
