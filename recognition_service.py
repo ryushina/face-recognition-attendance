@@ -61,6 +61,7 @@ class MatchResult:
     runner_up_score: float | None = None
     model_version: str = MODEL_VERSION
     message: str = ""
+    reason: str = ""
 
 
 def _as_list(value):
@@ -181,12 +182,13 @@ class RecognitionService:
             raise RecognitionError("YuNet returned a malformed detection result.") from exc
         if rows is None:
             return ()
+        native_rows = rows
         rows = _as_list(rows)
         if not isinstance(rows, (list, tuple)):
             raise RecognitionError("YuNet returned detections in an invalid format.")
 
         faces = []
-        for row in rows:
+        for row, native_row in zip(rows, native_rows):
             raw_values = _as_list(row)
             if not isinstance(raw_values, (list, tuple)) or len(raw_values) != 15:
                 raise RecognitionError("YuNet returned a face row with an invalid dimension.")
@@ -219,7 +221,9 @@ class RecognitionService:
                     (x1, y1, x2 - x1, y2 - y1),
                     landmarks,
                     values[14],
-                    row,
+                    # Validation above uses Python values, but OpenCV's
+                    # alignCrop binding requires the original NumPy row.
+                    native_row,
                 )
             )
         return tuple(faces)
@@ -293,18 +297,18 @@ class RecognitionService:
     def match(self, embedding: FaceEmbedding) -> MatchResult:
         """Return recognized, unknown, or ambiguous based on student-level scores."""
         if not isinstance(embedding, FaceEmbedding):
-            return MatchResult("unknown", message="Invalid face embedding.")
+            return MatchResult("unknown", message="Invalid face embedding.", reason="invalid_embedding")
         if (
             embedding.model_version != MODEL_VERSION
             or embedding.preprocessing_id != PREPROCESSING_ID
             or len(embedding.vector) != EMBEDDING_DIMENSION
             or not all(math.isfinite(value) for value in embedding.vector)
         ):
-            return MatchResult("unknown", message="Embedding version or data is incompatible.")
+            return MatchResult("unknown", message="Embedding version or data is incompatible.", reason="incompatible_embedding")
         with self._model_lock:
             gallery = self._gallery
         if not gallery:
-            return MatchResult("unknown", message="Recognition gallery is empty.")
+            return MatchResult("unknown", message="Recognition gallery is empty.", reason="gallery_empty")
 
         candidates = []
         for student_id, name, samples in gallery:
@@ -317,11 +321,13 @@ class RecognitionService:
             return MatchResult(
                 "unknown", score=top_score, runner_up_score=runner_up,
                 message="Best match is below the provisional similarity threshold.",
+                reason="below_similarity",
             )
         if runner_up is not None and top_score - runner_up < self.minimum_margin:
             return MatchResult(
                 "ambiguous", score=top_score, runner_up_score=runner_up,
                 message="Top student matches are too close to distinguish.",
+                reason="insufficient_margin",
             )
         return MatchResult(
             "recognized", student_id, name, top_score, runner_up,
@@ -331,7 +337,7 @@ class RecognitionService:
         """Detect and classify a live frame without touching UI or storage."""
         faces = self.detect(frame)
         if not faces:
-            return MatchResult("unknown", message="No face detected.")
+            return MatchResult("unknown", message="No face detected.", reason="no_face")
         if len(faces) > 1:
-            return MatchResult("ambiguous", message="Multiple faces detected.")
+            return MatchResult("ambiguous", message="Multiple faces detected.", reason="multiple_faces")
         return self.match(self.extract(frame, faces[0]))

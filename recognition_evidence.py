@@ -32,6 +32,11 @@ class RecognitionEvidenceTracker:
         self.max_age_seconds = float(max_age_seconds)
         self.reset()
 
+    @property
+    def progress(self):
+        """Number of distinct consecutive candidate frames collected."""
+        return self._count
+
     def reset(self):
         self._student_id = None
         self._name = ""

@@ -44,6 +44,7 @@ class AppConfigTests(unittest.TestCase):
         self.assertEqual(settings.identity_evidence_window_seconds, 2.0)
         self.assertEqual(settings.identity_max_age_seconds, 1.0)
         self.assertIsNone(settings.attendance_timezone)
+        self.assertTrue(settings.camera_autostart)
         self.assertFalse(settings.data_dir.exists())
 
     def test_default_paths_are_independent_of_current_working_directory(self):
@@ -103,10 +104,15 @@ class AppConfigTests(unittest.TestCase):
         self.assertEqual(settings.yolo_confidence, 0.65)
         self.assertEqual(settings.frame_interval_seconds, 0.1)
 
+    def test_camera_autostart_can_be_disabled_for_review(self):
+        settings = self.load_config({"ATTENDANCE_CAMERA_AUTOSTART": "false"})
+        self.assertFalse(settings.camera_autostart)
+
     def test_invalid_settings_report_the_setting_name(self):
         invalid_settings = (
             ("ATTENDANCE_CAMERA_INDEX", "webcam"),
             ("ATTENDANCE_CAMERA_INDEX", "-1"),
+            ("ATTENDANCE_CAMERA_AUTOSTART", "maybe"),
             ("ATTENDANCE_DETECTOR", "unknown"),
             ("ATTENDANCE_YOLO_CONFIDENCE", "nan"),
             ("ATTENDANCE_YOLO_CONFIDENCE", "1.1"),

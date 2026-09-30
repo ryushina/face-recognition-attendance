@@ -1,4 +1,5 @@
 import cv2, time, threading, os
+import logging
 from datetime import datetime
 from pathlib import Path
 import math
@@ -256,10 +257,10 @@ class CameraService:
                         boxes = [detection.box for detection in detections]
                         if not detections:
                             from recognition_service import MatchResult
-                            match_result = MatchResult("unknown", message="No face detected.")
+                            match_result = MatchResult("unknown", message="No face detected.", reason="no_face")
                         elif len(detections) > 1:
                             from recognition_service import MatchResult
-                            match_result = MatchResult("ambiguous", message="Multiple faces detected.")
+                            match_result = MatchResult("ambiguous", message="Multiple faces detected.", reason="multiple_faces")
                         else:
                             embedding = self.recognition_service.extract(frame, detections[0])
                             match_result = self.recognition_service.match(embedding)
@@ -352,8 +353,8 @@ class CameraService:
     def _report_camera_error(self, message):
         """Save a readable last error and make it visible to the operator."""
         self.camera_error = message
+        logging.getLogger("face_attendance.camera").error("%s", message)
         self._publish_ui_update(frame=None, status=message, identity=None)
-        print(f"[CameraService] {message}")
 
     # -------------------- Detection --------------------
     def _detect_faces(self, frame_bgr):

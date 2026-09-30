@@ -58,6 +58,18 @@ def _positive_int(env: Mapping[str, str], name: str, default: int) -> int:
     return result
 
 
+def _boolean(env: Mapping[str, str], name: str, default: bool) -> bool:
+    value = env.get(name)
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ConfigError(f"{name} must be one of true/false, yes/no, on/off, or 1/0.")
+
+
 @dataclass(frozen=True)
 class AppConfig:
     """Validated runtime settings. Loading config never creates files or devices."""
@@ -80,6 +92,7 @@ class AppConfig:
     identity_evidence_window_seconds: float
     identity_max_age_seconds: float
     attendance_timezone: str | None
+    camera_autostart: bool
 
     @property
     def users_file(self) -> Path:
@@ -118,6 +131,13 @@ class AppConfig:
         data_dir = _resolve_from_app_dir(
             env.get("ATTENDANCE_DATA_DIR"), APP_DIR / "data"
         )
+        from kiosk_settings import read_json
+        saved = read_json(data_dir / "kiosk-settings.json")
+        env = dict(env)
+        if saved.get("timezone"):
+            env.setdefault("ATTENDANCE_TIMEZONE", str(saved["timezone"]))
+        if "camera_index" in saved:
+            env.setdefault("ATTENDANCE_CAMERA_INDEX", str(saved["camera_index"]))
         model_path = _resolve_from_app_dir(
             env.get("ATTENDANCE_MODEL_PATH"), APP_DIR / "yolov8n-face-lindevs.pt"
         )
@@ -196,6 +216,7 @@ class AppConfig:
             env, "ATTENDANCE_IDENTITY_MAX_AGE_SECONDS", 1.0
         )
         timezone_value = env.get("ATTENDANCE_TIMEZONE", "").strip() or None
+        camera_autostart = _boolean(env, "ATTENDANCE_CAMERA_AUTOSTART", True)
 
         return cls(
             app_dir=APP_DIR,
@@ -216,4 +237,5 @@ class AppConfig:
             identity_evidence_window_seconds=evidence_window,
             identity_max_age_seconds=identity_max_age,
             attendance_timezone=timezone_value,
+            camera_autostart=camera_autostart,
         )

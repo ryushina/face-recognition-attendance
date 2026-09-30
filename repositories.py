@@ -148,6 +148,80 @@ class StudentRepository:
         finally:
             connection.close()
 
+    def update_student(self, original_id, student_id, first_name, last_name, *,
+                       middle_name=None, guardian_full_name=None, guardian_phone=None):
+        """Edit details atomically; ID corrections cascade to samples/attendance."""
+        original_id = self._validate_student_id(original_id)
+        values = self._validate_student_fields(student_id, first_name, last_name,
+            middle_name, guardian_full_name, guardian_phone, "pending")
+        connection = self._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            self._require_editable(connection, original_id)
+            connection.execute(
+                "UPDATE students SET student_id=?, first_name=?, middle_name=?, last_name=?, "
+                "guardian_full_name=?, guardian_phone=? WHERE student_id=?",
+                (*values[:6], original_id),
+            )
+            row = connection.execute("SELECT * FROM students WHERE student_id=?", (values[0],)).fetchone()
+            result = self._to_student(connection, row)
+            connection.commit()
+            return result
+        except sqlite3.IntegrityError as exc:
+            connection.rollback()
+            if "students.student_id" in str(exc):
+                raise DuplicateStudentError("That LRN already belongs to another student.") from exc
+            raise StudentRepositoryError(f"Could not update student: {exc}") from exc
+        except (sqlite3.Error, DatabaseError) as exc:
+            connection.rollback()
+            raise StudentRepositoryError(f"Could not update student: {exc}") from exc
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+    @staticmethod
+    def _require_editable(connection, student_id):
+        row = connection.execute("SELECT enrollment_status FROM students WHERE student_id=?", (student_id,)).fetchone()
+        if row is None:
+            raise StudentValidationError("Student was not found. Refresh the list.")
+        if row["enrollment_status"] == "indexing":
+            raise StudentValidationError("Recognition preparation is running. Wait before editing this student.")
+
+    def replace_student_samples(self, student_id, sample_paths):
+        """Replace references in one transaction, retaining old image files."""
+        student_id = self._validate_student_id(student_id)
+        paths = self._validate_sample_paths(sample_paths, allow_empty=False)
+        if len(paths) < 3:
+            raise StudentValidationError("Capture at least three replacement photos before saving.")
+        connection = self._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            self._require_editable(connection, student_id)
+            # Never reuse IDs from the removed set: stale indexing results must
+            # not be accepted as embeddings for a different image set.
+            next_id = connection.execute("SELECT COALESCE(MAX(sample_id), 0)+1 FROM face_samples").fetchone()[0]
+            connection.execute("DELETE FROM face_samples WHERE student_id=?", (student_id,))
+            connection.executemany("INSERT INTO face_samples(sample_id, student_id, image_path) VALUES (?, ?, ?)",
+                [(next_id + i, student_id, path) for i, path in enumerate(paths)])
+            connection.execute("UPDATE students SET enrollment_status='pending', enrollment_error=NULL WHERE student_id=?", (student_id,))
+            row = connection.execute("SELECT * FROM students WHERE student_id=?", (student_id,)).fetchone()
+            result = self._to_student(connection, row)
+            connection.commit()
+            return result
+        except sqlite3.IntegrityError as exc:
+            connection.rollback()
+            raise StudentRepositoryError("A replacement photo is already linked to another student.") from exc
+        except (sqlite3.Error, DatabaseError) as exc:
+            connection.rollback()
+            raise StudentRepositoryError(f"Could not replace student photos: {exc}") from exc
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
     def list_students(self) -> list[StudentRecord]:
         """Return students in stable ID order, including their samples."""
         connection = self._connect()

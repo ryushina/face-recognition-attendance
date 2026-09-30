@@ -1,6 +1,8 @@
 # Implementation plan for Luna
 
-Plan and execution record. T01-T11 are complete; T12-T30 remain TODO.
+Plan and execution record. T01-T12, T14-T16, T18-T20, and T22-T23 are complete. T13, T17, T21, and T24 remain in progress pending the checks recorded below. T25-T30 remain TODO.
+
+UI direction update: the user selected student self-service at a kiosk. The core guided screen, protected staff area, persistent setup, and three-step enrollment are implemented locally; see [docs/kiosk-ui-plan.md](docs/kiosk-ui-plan.md) and [the operator guide](docs/kiosk-user-guide.md). Programmatic Tk layout and workflow checks pass; existing visual/hardware validation remains open. The reproduced SFace array-to-list handoff bug is fixed locally and has a real OpenCV/SFace API regression using synthetic pixels.
 
 ## Working assumptions
 
@@ -246,7 +248,7 @@ Expected files: recognition state module and tests.
 
 ### T17 — Show live recognition in the desktop application
 
-Status: TODO. Dependencies: T05, T16.
+Status: IN PROGRESS. Dependencies: T05, T16. Implementation complete; manual GUI/authorized-image check remains open.
 
 Scope: integrate the pipeline into the bounded worker/UI handoff. Show recognized student, unknown, ambiguous, processing, and error states. Load models/gallery once, avoid inference inside Tk callbacks, and refresh the gallery after successful enrollment indexing. Keep captured-frame freshness intact through display and processing.
 
@@ -260,7 +262,7 @@ Phase C checkpoint: an enrolled student can be recognized after restart, and unk
 
 ### T18 — Implement the attendance database and rule
 
-Status: TODO. Dependencies: T08, confirmed or explicitly adopted draft attendance rule.
+Status: DONE. Dependencies: T08, draft daily attendance rule adopted for development. Completed 2026-09-29.
 
 Scope: add attendance schema/service for the chosen rule. For the draft daily rule, use a database unique constraint on student ID + local attendance date. Store the UTC timestamp, configured timezone, student reference, and recognition metadata needed to explain the event. Use an injected clock and reject unconfigured/invalid timezone. Keep SQLite access in the owning thread.
 
@@ -270,7 +272,7 @@ Expected files: database migration, `attendance_service.py`, attendance tests.
 
 ### T19 — Replace the hardcoded Login behavior
 
-Status: TODO. Dependencies: T17, T18.
+Status: DONE. Dependencies: T17, T18. Completed 2026-09-29.
 
 Scope: make the attendance-mode control start/pause recording. Pass only fresh, stable recognition evidence to the attendance service. Show recorded/already recorded/unknown/error feedback. Pause attendance and clear evidence on enrollment entry, camera loss, or mode changes. Remove the hardcoded name and active text-log attendance writer.
 
@@ -280,7 +282,7 @@ Expected files: `main.py`, `view.py`, integration tests.
 
 ### T20 — Add attendance history and CSV export
 
-Status: TODO. Dependencies: T19.
+Status: DONE. Dependencies: T19. Completed 2026-09-29.
 
 Scope: add a basic history table with date/student filtering and an explicit CSV export action. Display configured local time and student details. Handle empty results, canceled export, and write errors. Query SQLite through the repository.
 
@@ -290,7 +292,7 @@ Expected files: `view.py`, query/export logic, export tests.
 
 ### T21 — Make the existing UI usable on a small display
 
-Status: TODO. Dependencies: T20.
+Status: IN PROGRESS. Implementation complete; manual 800x480 visual check remains open.
 
 Scope: replace placeholder labels, preserve camera image aspect ratio, and make the long enrollment form scrollable. Remove the rigid 1200-pixel minimum where it blocks smaller displays. Clearly disable or label teacher registration as unavailable until implemented. Check capture/submit/mode buttons and status text at a provisional 800x480 and the eventual target resolution.
 
@@ -300,7 +302,7 @@ Expected files: `view.py`, limited window setup in `main.py`.
 
 ### T22 — Surface operational failures and record diagnostics
 
-Status: TODO. Dependencies: T19.
+Status: DONE. Dependencies: T19. Completed 2026-09-29.
 
 Scope: add bounded/rotating diagnostic logs and useful user-facing errors for camera, inference, and storage failures. Avoid logging face arrays, embeddings, full guardian details, or per-frame noise. Ensure failed writes and worker crashes clear success/identity state. Keep this separate from attendance records.
 
@@ -310,7 +312,7 @@ Expected files: logging setup and existing service error paths.
 
 ### T23 — Provide a verified backup and restore procedure
 
-Status: TODO. Dependencies: T14, T18.
+Status: DONE. Dependencies: T14, T18. Completed 2026-09-29.
 
 Scope: implement an explicit local backup command/procedure for a consistent SQLite snapshot plus referenced samples and configuration/model-version metadata. Use SQLite's backup mechanism or a documented stopped-app backup. Restore into a separate data directory first, validate references/schema, and never overwrite the current data directory automatically.
 
@@ -320,7 +322,7 @@ Expected files: backup utility, restore instructions, a round-trip test.
 
 ### T24 — Verify the complete desktop workflow
 
-Status: TODO. Dependencies: T21, T22, T23.
+Status: IN PROGRESS. Automated end-to-end checks complete; manual desktop checks remain open.
 
 Scope: add a focused end-to-end integration test using temporary data, fake capture/model results, and an injected clock. Verify enrollment -> indexing -> restart -> recognition -> attendance -> history/export. Record a separate manual desktop checklist using actual models and camera when available. Fix failures within this workflow before marking the checkpoint complete.
 
@@ -577,6 +579,96 @@ Verification commands and actual results: `.venv\Scripts\python.exe -B -m unitte
 Manual/hardware checks still outstanding: Real camera cadence/freshness will be checked when an authorized camera test is available; actual camera validation remains open.
 Decisions or deviations: `observe()` is called on the Tk poller with the acquisition frame ID/time and current monotonic time; no image or feature data is retained in the tracker.
 Next eligible task: T17
+```
+
+```text
+Task: T13 follow-up
+State: IN PROGRESS
+Changes: Added the Windows `tzdata` runtime dependency and verified the actual pinned YuNet and SFace OpenCV objects load from the provisioned ONNX files. The real-model blank-frame smoke check completed without touching a camera or person image.
+Verification commands and actual results: `.venv\Scripts\python.exe -m pip install tzdata==2026.4` succeeded. `.venv\Scripts\python.exe -c "import numpy as np; from recognition_service import RecognitionService; service=RecognitionService('models'); print(len(service.detect(np.zeros((480,640,3),dtype=np.uint8))))"` printed `0`. Full synthetic extraction, normalization, error, and matching checks remain in the automated suite.
+Manual/hardware checks still outstanding: Real SFace extraction from a suitable authorized face image and live camera verification.
+Decisions or deviations: Selected the current pinned `tzdata==2026.4` because Windows may not provide an IANA timezone database; school dates remain disabled until `ATTENDANCE_TIMEZONE` is configured.
+Next eligible task: T17 integration (real-image check remains open).
+```
+
+```text
+Task: T17
+State: IN PROGRESS
+Changes: Connected camera-worker identity results and their original frame IDs/timestamps to the existing Tk-thread poller and controller. Recognition results refresh on enrollment indexing; loss/error results clear the old identity. Added explicit attendance-mode status and progress integration.
+Verification commands and actual results: `python -m unittest discover -s tests` covers poller thread delivery, gallery refresh, unknown/ambiguous states, camera loss, and the complete synthetic desktop path. Actual model loading on a synthetic blank frame passed.
+Manual/hardware checks still outstanding: No GUI was opened and no authorized face image or camera participant was available. The manual checklist is in `docs/desktop-validation.md`.
+Decisions or deviations: Keep automatic startup behavior for the configured camera. Do not claim real-person recognition from model loading or synthetic embeddings.
+Next eligible task: T18.
+```
+
+```text
+Task: T18
+State: DONE
+Changes: Added schema v3 with UTC event time, school-local date and timezone, similarity/model version, and frame evidence metadata. The unique student/date constraint and immediate write transaction enforce the adopted draft daily rule across restarts and concurrent calls.
+Verification commands and actual results: `python -m unittest discover -s tests` passed timezone-boundary, next-local-day, invalid-zone, evidence rejection, persistence, and concurrent duplicate tests after adding the pinned Windows `tzdata` package.
+Manual/hardware checks still outstanding: The school's attendance policy and timezone must be confirmed before collecting real attendance.
+Decisions or deviations: The plan's draft once-per-local-day rule is the development behavior. No school policy is asserted.
+Next eligible task: T19.
+```
+
+```text
+Task: T19
+State: DONE
+Changes: Replaced placeholder hardcoded Login logging with Start/Pause Attendance. Only stable, fresh, distinct-frame recognized results reach SQLite. Enrollment, camera loss, stale queued results, unknown/multiple faces, and failed writes suppress or pause attendance; failed writes never show success.
+Verification commands and actual results: `tests/test_attendance_workflow.py` covers stale frames, three-frame evidence, paused mode, enrollment, unknown/multiple faces, camera loss, timezone/camera readiness, duplicate suppression, and simulated storage failure.
+Manual/hardware checks still outstanding: Operator feedback and camera behavior need the desktop checks in `docs/desktop-validation.md`.
+Decisions or deviations: Repeated stable results rely on the database unique constraint for durable deduplication; attendance pauses when the camera feed or storage fails.
+Next eligible task: T20.
+```
+
+```text
+Task: T20
+State: DONE
+Changes: Added date/student-filtered attendance history with local event time, student details, and explicit UTF-8 CSV export. Empty history and export/write errors are visible in the UI; canceled file selection leaves data untouched.
+Verification commands and actual results: `tests/test_attendance_history.py` verifies local-time conversion, filters, invalid dates, empty exports, and Unicode/comma/quote-safe CSV. The synthetic end-to-end workflow compares the persisted history and exported CSV.
+Manual/hardware checks still outstanding: Visual review of the history window remains on the desktop checklist.
+Decisions or deviations: History defaults to today's configured school-local date; clearing the date shows all recent records.
+Next eligible task: T21.
+```
+
+```text
+Task: T21
+State: IN PROGRESS
+Changes: Replaced placeholder Login UI with attendance controls and a history window; added camera start/stop/restart controls and `ATTENDANCE_CAMERA_AUTOSTART` for display-only review; disabled teacher registration with an explicit unavailable label; made the enrollment panel scrollable; removed the 1200-pixel grid minimum; capped the preview image with aspect ratio preserved; set an 800x480 minimum window size.
+Verification commands and actual results: Source compiles and automated controller/export checks pass. `ATTENDANCE_CAMERA_AUTOSTART=false` keeps the camera stopped while the app opens; the default remains automatic startup. The native UI bridge returned no open windows and had no desktop-control surface, so the layout could not be inspected.
+Manual/hardware checks still outstanding: Open the app at 800x480 and inspect clipping and scroll behavior as recorded in `docs/desktop-validation.md`.
+Decisions or deviations: Kept a compact three-panel layout, with a vertical scrollbar for the enrollment form.
+Next eligible task: T22.
+```
+
+```text
+Task: T22
+State: DONE
+Changes: Added a standard rotating application log at `data/application.log`, with three retained 1 MB files. Model initialization, camera errors, background indexing/gallery failures, and attendance storage failures produce bounded diagnostics without frame arrays or embeddings.
+Verification commands and actual results: `tests/test_diagnostics.py` confirms the rotating handler configuration, single-handler setup, and file output. Attendance storage failure tests confirm the UI pauses without reporting success. The Windows app process launched with `ATTENDANCE_CAMERA_AUTOSTART=false` and an isolated temporary data directory.
+Manual/hardware checks still outstanding: Confirm the operator can locate the configured log file during desktop validation.
+Decisions or deviations: Kept per-frame success and identity output out of diagnostic logs.
+Next eligible task: T23.
+```
+
+```text
+Task: T23
+State: DONE
+Changes: Added `scripts/backup_data.py` with explicit `backup` and `restore` commands. Backup uses SQLite's online snapshot, copies all referenced samples into portable paths, rewrites only the backup copy, and records database/sample checksums plus schema, model, preprocessing, and timezone metadata. Restore validates integrity, foreign keys, checksums, and sample paths, and refuses every existing destination.
+Verification commands and actual results: `tests/test_backup_data.py` restores enrollment samples, compatible embeddings, and attendance into a separate temporary directory, and rejects missing/corrupt photos and existing destinations without changing source data.
+Manual/hardware checks still outstanding: Back up and restore a copy of the intended pilot database before using real records.
+Decisions or deviations: Model files are recovered through the documented pinned, checksummed setup command rather than copied into each data backup.
+Next eligible task: T24.
+```
+
+```text
+Task: T24
+State: IN PROGRESS
+Changes: Added a synthetic end-to-end integration test for enrollment, asynchronous indexing, process-style restart, gallery reload, recognition, stable attendance, history/CSV export, and duplicate suppression after another restart. Added `docs/desktop-validation.md` to separate automated results from real desktop/model/camera checks.
+Verification commands and actual results: `.venv\Scripts\python.exe -m unittest discover -s tests`: all 111 tests passed. `.venv\Scripts\python.exe -m compileall -q .`, `import main`, and `git diff --check` passed. Actual models load; the blank-frame check returns zero faces. No user image or camera was used.
+Manual/hardware checks still outstanding: T13 real-face extraction, T17 GUI/authorized-image behavior, T21 800x480 layout, configured timezone/policy confirmation, and the desktop checklist remain open. The Batch 1 desktop checkpoint is not complete until these are reviewed.
+Decisions or deviations: Use only temporary synthetic images, database fixtures, and fake camera frames in this environment.
+Next eligible task: Complete the authorized manual desktop checks; stop before T25.
 ```
 
 ## Technical references to recheck when implementing

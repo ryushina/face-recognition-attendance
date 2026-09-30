@@ -6,6 +6,8 @@ import unittest
 from pathlib import Path
 import types
 
+import numpy as np
+
 from recognition_service import (
     EMBEDDING_DIMENSION,
     MODEL_VERSION,
@@ -92,6 +94,45 @@ class RecognitionServiceTests(unittest.TestCase):
         self.assertTrue(all(math.isfinite(value) for value in embedding.vector))
         self.assertEqual(embedding.model_version, MODEL_VERSION)
         self.assertEqual(embedding.preprocessing_id, PREPROCESSING_ID)
+
+    def test_numpy_detection_row_keeps_its_type_for_opencv_alignment(self):
+        rows = np.asarray([face_row()], dtype=np.float32)
+        service, _detector, recognizer = self.make_service(rows)
+
+        face = service.detect(FakeFrame())[0]
+        service.extract(FakeFrame(), face)
+
+        aligned_row = recognizer.aligned_rows[0]
+        self.assertIsInstance(aligned_row, np.ndarray)
+        self.assertEqual(aligned_row.dtype, np.float32)
+        self.assertEqual(aligned_row.shape, (15,))
+        np.testing.assert_array_equal(aligned_row, rows[0])
+
+    def test_native_detection_row_can_align_and_extract_with_real_sface(self):
+        model_path = (
+            Path(__file__).resolve().parents[1]
+            / "models" / "face_recognition_sface_2021dec.onnx"
+        )
+        if not model_path.is_file():
+            self.skipTest("Provision the pinned SFace model to run the native API check.")
+        import cv2
+
+        # Synthetic pixels and supplied landmarks test the actual OpenCV API
+        # contract without accessing a camera or a person's image.
+        frame = np.zeros((160, 160, 3), dtype=np.uint8)
+        rows = np.asarray([
+            [30, 20, 100, 120, 55, 60, 105, 60, 80, 85, 60, 110, 100, 110, 0.99]
+        ], dtype=np.float32)
+        service = RecognitionService(
+            detector=FakeDetector(rows),
+            recognizer=cv2.FaceRecognizerSF.create(str(model_path), ""),
+        )
+
+        embedding = service.extract_single(frame)
+
+        self.assertEqual(len(embedding.vector), EMBEDDING_DIMENSION)
+        self.assertTrue(all(math.isfinite(value) for value in embedding.vector))
+        self.assertAlmostEqual(sum(value * value for value in embedding.vector), 1.0)
 
     def test_no_face_and_multiple_face_images_are_rejected_for_enrollment(self):
         no_face, _detector, _recognizer = self.make_service(None)
@@ -189,12 +230,14 @@ class RecognitionServiceTests(unittest.TestCase):
 
         service.set_gallery([{"student_id": "a", "embeddings": [y]}])
         self.assertEqual(service.match(query).status, "unknown")
+        self.assertEqual(service.match(query).reason, "below_similarity")
         service.set_gallery([
             {"student_id": "a", "embeddings": [x]},
             {"student_id": "b", "embeddings": [near]},
         ])
         ambiguous = service.match(query)
         self.assertEqual(ambiguous.status, "ambiguous")
+        self.assertEqual(ambiguous.reason, "insufficient_margin")
         self.assertIn("close", ambiguous.message)
 
     def test_empty_and_incompatible_gallery_inputs_are_unknown(self):
@@ -202,6 +245,7 @@ class RecognitionServiceTests(unittest.TestCase):
         vector = (1.0,) + (0.0,) * 127
         query = FaceEmbedding(vector, (0, 0, 10, 10), 1.0)
         self.assertEqual(service.match(query).status, "unknown")
+        self.assertEqual(service.match(query).reason, "gallery_empty")
         service.set_gallery([{"student_id": "x", "embeddings": [vector]}])
         incompatible = FaceEmbedding(
             vector, (0, 0, 10, 10), 1.0,
@@ -209,6 +253,7 @@ class RecognitionServiceTests(unittest.TestCase):
             preprocessing_id=PREPROCESSING_ID,
         )
         self.assertEqual(service.match(incompatible).status, "unknown")
+        self.assertEqual(service.match(incompatible).reason, "incompatible_embedding")
         self.assertEqual(service.match(query).model_version, MODEL_VERSION)
 
 
